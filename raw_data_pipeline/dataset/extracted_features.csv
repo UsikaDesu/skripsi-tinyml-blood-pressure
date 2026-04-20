@@ -1,0 +1,7 @@
+timestamp,ir_mean,red_mean,ir_std,red_std,heart_rate,spo2,valid,systolic_bp,diastolic_bp,bp_class,notes
+829,112635,93324,743,260,73,97,1,95,59,0,extracted_raw
+21438,115662,96495,262,113,84,99,1,98,61,1,extracted_raw
+22965,115883,96910,515,174,99,100,1,138,79,2,extracted_raw
+49258,105019,98618,1117,478,92,99,1,131,78,2,extracted_raw
+10946,104995,95705,898,332,96,97,1,132,82,2,extracted_raw
+38029,95946,91520,1118,360,101,98,1,123,79,1,extracted_raw

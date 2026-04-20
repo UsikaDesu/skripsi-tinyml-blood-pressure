@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+env/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Arduino/ESP32
+build/
+*.bin
+*.elf
+*.hex
+
+# Temp files
+*.bak
+*.tmp
+.DS_Store
+
+# (Abaikan dataset jika terlalu besar, tapi jika ingin diupload hapus tanda pagar di bawah)
+# raw_data_pipeline/dataset/
+# training_data/

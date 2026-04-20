@@ -1,0 +1,2 @@
+timestamp,ir_mean,red_mean,ir_std,red_std,heart_rate,spo2,valid,systolic_bp,diastolic_bp,notes
+194804,104654.16,100047.95,433.01,226.70,105.82,95.36,1,136,88,active
