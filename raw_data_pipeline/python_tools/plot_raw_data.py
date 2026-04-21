@@ -3,6 +3,7 @@ import glob
 import pandas as pd
 import matplotlib.pyplot as plt
 import shutil
+import scipy.signal as signal
 
 # ==========================================
 # CONFIGURATION
@@ -45,21 +46,44 @@ def plot_raw_data():
     ir_data = df['ir_raw'].iloc[:plot_limit]
     red_data = df['red_raw'].iloc[:plot_limit]
     
-    plt.figure(figsize=(12, 6))
+    fs = 100.0
+    nyq = 0.5 * fs
+    b, a = signal.butter(2, [0.5 / nyq, 5.0 / nyq], btype='band')
     
-    # Plot IR Signal
-    plt.subplot(2, 1, 1)
-    plt.plot(time_sec, ir_data, color='blue', label='IR Signal (Pulse)')
-    plt.title(f'Raw Photoplethysmogram (PPG) - {os.path.basename(latest_file)}')
+    ir_detrended = signal.detrend(ir_data)
+    ir_filtered = signal.filtfilt(b, a, ir_detrended)
+    
+    red_detrended = signal.detrend(red_data)
+    
+    plt.figure(figsize=(12, 12))
+    
+    # 1. Plot IR Signal (Raw)
+    plt.subplot(4, 1, 1)
+    plt.plot(time_sec, ir_data, color='blue', label='IR Signal (Pulse) - RAW')
+    plt.title(f'Photoplethysmogram (PPG) - {os.path.basename(latest_file)}')
     plt.ylabel('IR Amplitude')
     plt.grid(True, alpha=0.3)
     plt.legend()
     
-    # Plot RED Signal
-    plt.subplot(2, 1, 2)
-    plt.plot(time_sec, red_data, color='red', label='RED Signal (Blood Oxygenation)')
-    plt.xlabel('Time (Seconds)')
+    # 2. Plot IR Signal (Processed)
+    plt.subplot(4, 1, 2)
+    plt.plot(time_sec, ir_filtered, color='purple', label='IR Signal (Pulse) - DETRENDED + BANDPASS (Ready for AI)')
+    plt.ylabel('IR Filtered')
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    
+    # 3. Plot RED Signal (Raw)
+    plt.subplot(4, 1, 3)
+    plt.plot(time_sec, red_data, color='red', label='RED Signal (SpO2) - RAW')
     plt.ylabel('RED Amplitude')
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    
+    # 4. Plot RED Signal (Detrended)
+    plt.subplot(4, 1, 4)
+    plt.plot(time_sec, red_detrended, color='orange', label='RED Signal (SpO2) - DETRENDED ONLY')
+    plt.xlabel('Time (Seconds)')
+    plt.ylabel('RED Detrended')
     plt.grid(True, alpha=0.3)
     plt.legend()
     

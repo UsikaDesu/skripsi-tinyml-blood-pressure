@@ -73,61 +73,87 @@ def load_and_extract_features():
                 print(f"Skipping {os.path.basename(file)}: Not enough samples ({len(df)}).")
                 continue
                 
-            # Process the whole 25-second window
-            ir_raw = df['ir_raw'].values
-            red_raw = df['red_raw'].values
+            # Windowing logic: 10 seconds per window (1000 samples at 100Hz)
+            # This perfectly extracts 2 data points from a 25s file and safely discards the last 5 seconds.
+            window_size = 1000
+            num_windows = len(df) // window_size
             
-            # Apply Detrending to ensure accurate AC fluctuation readings
-            ir_detrended = signal.detrend(ir_raw)
-            red_detrended = signal.detrend(red_raw)
+            if num_windows == 0:
+                print(f"Skipping {os.path.basename(file)}: Length ({len(df)}) is less than 8 seconds.")
+                continue
+                
+            for w in range(num_windows):
+                start_idx = w * window_size
+                end_idx = start_idx + window_size
+                
+                ir_raw = df['ir_raw'].values[start_idx:end_idx]
+                red_raw = df['red_raw'].values[start_idx:end_idx]
+                
+                # Apply Detrending to ensure accurate AC fluctuation readings
+                ir_detrended = signal.detrend(ir_raw)
+                red_detrended = signal.detrend(red_raw)
+                
+                # -------------------------------------------------------------
+                # QUALITY ASSURANCE (QA) GATE: CV < 12%
+                # -------------------------------------------------------------
+                # We apply a strict bandpass filter to calculate pure AC (Cardiac) Amplitude
+                nyq = 0.5 * SAMPLING_RATE_HZ
+                b, a = signal.butter(2, [0.5/nyq, 5.0/nyq], btype='band')
+                ir_filtered = signal.filtfilt(b, a, ir_detrended)
+                red_filtered = signal.filtfilt(b, a, red_detrended)
+                
+                peaks, _ = signal.find_peaks(ir_filtered, distance=50, prominence=np.std(ir_filtered)*0.5)
+                
+                if len(peaks) < 2:
+                    print(f"  -> [REJECTED] Window {w+1}/{num_windows} in {os.path.basename(file)}: Flatline (No Peaks).")
+                    continue
+                    
+                rr_intervals = np.diff(peaks)
+                mean_rr = np.mean(rr_intervals)
+                
+                if mean_rr == 0:
+                    continue
+                    
+                cv = np.std(rr_intervals) / mean_rr
+                if cv > 0.12:
+                    print(f"  -> [REJECTED] Window {w+1}/{num_windows} in {os.path.basename(file)}: CV {cv*100:.1f}% > 12% Limit (Jitter Detected).")
+                    continue
+                # -------------------------------------------------------------
+                
+                # Ground truth is duplicated on every row, just take the first
+                systolic = df['systolic_label'].iloc[0]
+                diastolic = df['diastolic_label'].iloc[0]
+                
+                # 1. Medical-Grade ML Features (Raw for Mean, Bandpass for STD)
+                ir_mean = int(np.round(np.mean(ir_raw)))
+                red_mean = int(np.round(np.mean(red_raw)))
+                ir_std = int(np.round(np.std(ir_filtered)))
+                red_std = int(np.round(np.std(red_filtered)))
+                
+                notes = f"win_{w+1}_of_{num_windows}"
+                
+                # Determine classification class
+                if systolic >= 130 or diastolic >= 85:
+                    bp_class = 2  # Hypertension
+                elif systolic <= 90 or diastolic <= 60:
+                    bp_class = 0  # Hypotension
+                else:
+                    bp_class = 1  # Normal
+                
+                features_list.append({
+                    'timestamp': int(df['time_ms'].iloc[start_idx]), # Start timestamp of window
+                    'ir_mean': ir_mean,
+                    'red_mean': red_mean,
+                    'ir_std': ir_std,
+                    'red_std': red_std,
+                    'valid': 1,
+                    'systolic_bp': systolic,
+                    'diastolic_bp': diastolic,
+                    'bp_class': bp_class,
+                    'notes': notes
+                })
             
-            # Ground truth is duplicated on every row, just take the first
-            systolic = df['systolic_label'].iloc[0]
-            diastolic = df['diastolic_label'].iloc[0]
-            
-            # 1. Statistical Features
-            # Mean is taken from RAW to preserve the baseline DC volume offset
-            ir_mean = int(np.round(np.mean(ir_raw)))
-            red_mean = int(np.round(np.mean(red_raw)))
-            # Standard Deviation is taken from DETRENDED data to measure pure AC pulse without wander slope
-            ir_std = int(np.round(np.std(ir_detrended)))
-            red_std = int(np.round(np.std(red_detrended)))
-            
-            # 2. Physiological Features
-            hr, spo2 = calculate_hr_spo2(ir_raw, red_raw, fs=SAMPLING_RATE_HZ)
-            hr = int(np.round(hr))
-            spo2 = int(np.round(spo2))
-            
-            if hr < 40 or hr > 200:
-                print(f"Warning in {os.path.basename(file)}: HR {hr:.1f} seems invalid. Still retaining.")
-            
-            notes = "extracted_raw"
-            
-            # Determine classification class
-            # 0: Hypotension, 1: Normal, 2: Hypertension
-            if systolic >= 130 or diastolic >= 85:
-                bp_class = 2  # Hypertension
-            elif systolic <= 90 or diastolic <= 60:
-                bp_class = 0  # Hypotension
-            else:
-                bp_class = 1  # Normal
-            
-            features_list.append({
-                'timestamp': int(df['time_ms'].iloc[0]), # Start timestamp
-                'ir_mean': ir_mean,
-                'red_mean': red_mean,
-                'ir_std': ir_std,
-                'red_std': red_std,
-                'heart_rate': hr,
-                'spo2': spo2,
-                'valid': 1,
-                'systolic_bp': systolic,
-                'diastolic_bp': diastolic,
-                'bp_class': bp_class,
-                'notes': notes
-            })
-            
-            print(f"[OK] Processed {os.path.basename(file)} -> BP: {systolic}/{diastolic} (Class {bp_class}), HR: {hr:.1f}")
+            print(f"[OK] Processed {os.path.basename(file)} -> Extracted {num_windows} windows (BP: {systolic}/{diastolic}, Class {bp_class})")
             
         except Exception as e:
             print(f"[ERROR] Failed to process {file}: {e}")

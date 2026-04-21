@@ -33,7 +33,7 @@ def plot_correlation():
             print(f"ERROR: File {data_path} tidak ditemukan.")
             return
         df = pd.read_csv(data_path)
-        fitur = ['ir_mean', 'red_mean', 'ir_std', 'red_std', 'heart_rate', 'spo2', 'systolic_bp', 'diastolic_bp']
+        fitur = ['ir_mean', 'red_mean', 'ir_std', 'red_std', 'systolic_bp', 'diastolic_bp']
         judul_grafik = f"Matriks Korelasi (Fitur Pipeline Baru)\n({len(df)} Sampel Data Perekaman)"
         
     elif choice == '2':
@@ -47,7 +47,7 @@ def plot_correlation():
             
         dfs = [pd.read_csv(f) for f in csv_files]
         df = pd.concat(dfs, ignore_index=True)
-        fitur = ['ir_mean', 'red_mean', 'ir_std', 'red_std', 'heart_rate', 'spo2', 'systolic_bp', 'diastolic_bp']
+        fitur = ['ir_mean', 'red_mean', 'ir_std', 'red_std', 'systolic_bp', 'diastolic_bp']
         judul_grafik = f"Matriks Korelasi (Data Latih Lama)\n({len(df)} Sampel Pengukuran)"
         
     elif choice == '3':

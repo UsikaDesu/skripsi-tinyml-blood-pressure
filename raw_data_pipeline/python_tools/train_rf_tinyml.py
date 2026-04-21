@@ -13,7 +13,7 @@ from micromlgen import port
 DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'dataset', 'extracted_features.csv')
 MODEL_OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'rf_model.h')
 
-FEATURES = ['ir_mean', 'red_mean', 'ir_std', 'red_std', 'heart_rate', 'spo2']
+FEATURES = ['ir_mean', 'red_mean', 'ir_std', 'red_std']
 
 def load_data():
     if not os.path.exists(DATA_PATH):
