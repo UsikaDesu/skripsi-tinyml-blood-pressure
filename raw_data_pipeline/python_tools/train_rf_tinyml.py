@@ -3,7 +3,7 @@ import glob
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from micromlgen import port
 
@@ -30,18 +30,8 @@ def load_data():
         print(f"  - Failed to load dataset: {e}")
         return None
     
-    # 1. Generate target classes
-    def get_bp_class(row):
-        sys = row['systolic_bp']
-        dia = row['diastolic_bp']
-        if sys >= 130 or dia >= 85:
-            return 2  # Hypertension
-        elif sys <= 90 or dia <= 60:
-            return 0  # Hypotension
-        else:
-            return 1  # Normal
-            
-    combined_df['bp_class'] = combined_df.apply(get_bp_class, axis=1)
+    # bp_class sudah dihitung oleh extract_features.py (WHO/Indonesia Standard)
+    # Kelas 0 = Non-Hipertensi, Kelas 1 = Hipertensi (Systolic>=140 ATAU Diastolic>=90)
     
     # Clean NaNs
     combined_df.dropna(subset=FEATURES + ['bp_class'], inplace=True)
@@ -79,9 +69,10 @@ def train_and_export():
     
     print(f"\nTraining on {len(X_train)} samples, Testing on {len(X_test)} samples...")
     
-    # Instantiate Random Forest
-    # We keep n_estimators small to comfortably fit in ESP32 Flash memory
-    clf = RandomForestClassifier(n_estimators=30, max_depth=10, random_state=42)
+    # Instantiate Random Forest with class_weight='balanced'
+    # class_weight='balanced' mengatasi ketimpangan data (85:15)
+    # n_estimators kecil agar muat di ESP32 Flash memory
+    clf = RandomForestClassifier(n_estimators=30, max_depth=10, random_state=42, class_weight='balanced')
     clf.fit(X_train, y_train)
     
     # Evaluation
@@ -90,8 +81,27 @@ def train_and_export():
     
     print("\n--- Model Evaluation ---")
     print(f"Accuracy: {accuracy * 100:.2f}%\n")
-    print("Classification Report:")
-    print(classification_report(y_test, preds, labels=[0, 1, 2], target_names=["Hypotension", "Normal", "Hypertension"], zero_division=0))
+    print("Classification Report (WHO/Indonesia Standard):")
+    print(classification_report(y_test, preds, labels=[0, 1], target_names=["Non-Hipertensi", "Hipertensi"], zero_division=0))
+    
+    print("Confusion Matrix:")
+    cm = confusion_matrix(y_test, preds, labels=[0, 1])
+    print(f"                  Prediksi")
+    print(f"                  Non-HT  HT")
+    print(f"  Aktual Non-HT  [{cm[0][0]:4d}  {cm[0][1]:4d}]")
+    print(f"  Aktual HT      [{cm[1][0]:4d}  {cm[1][1]:4d}]")
+    
+    # Cross-Validation (anti-overfitting check)
+    print("\n--- Cross-Validation (5-Fold) ---")
+    cv_scores = cross_val_score(clf, X, y, cv=5, scoring='accuracy')
+    print(f"Skor per lipatan: {[f'{s*100:.1f}%' for s in cv_scores]}")
+    print(f"Rata-rata CV: {cv_scores.mean()*100:.2f}% (+/- {cv_scores.std()*100:.2f}%)")
+    
+    # Feature Importance
+    print("\n--- Feature Importance ---")
+    for feat, imp in sorted(zip(FEATURES, clf.feature_importances_), key=lambda x: -x[1]):
+        bar = '#' * int(imp * 40)
+        print(f"  {feat:10s}: {imp:.3f} {bar}")
     
     # Generate C++ Code Using micromlgen
     print("\nExtracting and porting model to C++ ...")

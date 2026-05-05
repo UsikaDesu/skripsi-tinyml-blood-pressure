@@ -82,6 +82,7 @@ def load_and_extract_features():
                 print(f"Skipping {os.path.basename(file)}: Length ({len(df)}) is less than 8 seconds.")
                 continue
                 
+            count_before = len(features_list)
             for w in range(num_windows):
                 start_idx = w * window_size
                 end_idx = start_idx + window_size
@@ -132,13 +133,12 @@ def load_and_extract_features():
                 
                 notes = f"win_{w+1}_of_{num_windows}"
                 
-                # Determine classification class
-                if systolic >= 130 or diastolic >= 85:
-                    bp_class = 2  # Hypertension
-                elif systolic <= 90 or diastolic <= 60:
-                    bp_class = 0  # Hypotension
+                # Determine classification class (WHO/Indonesia Standard)
+                # Hipertensi: Systolic >= 140 ATAU Diastolic >= 90
+                if systolic >= 140 or diastolic >= 90:
+                    bp_class = 1  # Hipertensi
                 else:
-                    bp_class = 1  # Normal
+                    bp_class = 0  # Non-Hipertensi
                 
                 features_list.append({
                     'timestamp': int(df['time_ms'].iloc[start_idx]), # Start timestamp of window
@@ -153,7 +153,14 @@ def load_and_extract_features():
                     'notes': notes
                 })
             
-            print(f"[OK] Processed {os.path.basename(file)} -> Extracted {num_windows} windows (BP: {systolic}/{diastolic}, Class {bp_class})")
+            # Simple & bulletproof: count by list length difference
+            accepted = len(features_list) - count_before
+            rejected = num_windows - accepted
+            
+            if rejected > 0:
+                print(f"[OK] Processed {os.path.basename(file)} -> Accepted {accepted}/{num_windows} windows, Rejected {rejected} (BP: {systolic}/{diastolic}, Class {bp_class})")
+            else:
+                print(f"[OK] Processed {os.path.basename(file)} -> Accepted {accepted}/{num_windows} windows (BP: {systolic}/{diastolic}, Class {bp_class})")
             
         except Exception as e:
             print(f"[ERROR] Failed to process {file}: {e}")
