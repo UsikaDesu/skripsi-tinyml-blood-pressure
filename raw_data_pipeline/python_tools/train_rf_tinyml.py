@@ -11,7 +11,7 @@ from micromlgen import port
 # CONFIGURATION
 # ==========================================
 DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'dataset', 'extracted_features.csv')
-MODEL_OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'rf_model.h')
+MODEL_OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'esp32_bp_inference_classification', 'rf_model.h')
 
 FEATURES = ['ir_mean', 'red_mean', 'ir_std', 'red_std']
 
@@ -71,8 +71,14 @@ def train_and_export():
     
     # Instantiate Random Forest with class_weight='balanced'
     # class_weight='balanced' mengatasi ketimpangan data (85:15)
-    # n_estimators kecil agar muat di ESP32 Flash memory
-    clf = RandomForestClassifier(n_estimators=30, max_depth=10, random_state=42, class_weight='balanced')
+    # Initialize Random Forest model (adjusted to 50 trees for ESP32)
+    clf = RandomForestClassifier(
+        n_estimators=50,
+        max_depth=5,        # Limit depth to keep model small
+        min_samples_leaf=2,
+        class_weight='balanced', # Crucial for unbalanced medical datasets
+        random_state=42
+    )
     clf.fit(X_train, y_train)
     
     # Evaluation

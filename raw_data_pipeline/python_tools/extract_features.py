@@ -117,7 +117,19 @@ def load_and_extract_features():
                     
                 cv = np.std(rr_intervals) / mean_rr
                 if cv > 0.12:
-                    print(f"  -> [REJECTED] Window {w+1}/{num_windows} in {os.path.basename(file)}: CV {cv*100:.1f}% > 12% Limit (Jitter Detected).")
+                    print(f"  -> [REJECTED] Window {w+1}/{num_windows} in {os.path.basename(file)}: Time CV {cv*100:.1f}% > 12% Limit (Jitter Detected).")
+                    continue
+                    
+                # 2nd QA Gate: Amplitude Coefficient of Variation (CV)
+                # Reject if the height of the peaks fluctuates wildly (e.g., finger moving vertically)
+                amplitudes = ir_filtered[peaks]
+                mean_amp = np.mean(amplitudes)
+                if mean_amp == 0:
+                    continue
+                    
+                cv_amp = np.std(amplitudes) / mean_amp
+                if cv_amp > 0.25: # Set limit to 25% because amplitude naturally varies more than rhythm
+                    print(f"  -> [REJECTED] Window {w+1}/{num_windows} in {os.path.basename(file)}: Amp CV {cv_amp*100:.1f}% > 25% Limit (Pressure Shift Detected).")
                     continue
                 # -------------------------------------------------------------
                 
