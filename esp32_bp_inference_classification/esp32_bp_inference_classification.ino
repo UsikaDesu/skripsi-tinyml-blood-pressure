@@ -81,6 +81,75 @@ void oledMessage(const char *line1, const char *line2 = "",
   display.display();
 }
 
+// ── DSP Filters ───────────────────────────────────────────────────────
+
+// 1. Detrending (Linear Least Squares)
+void detrend_signal(float* buffer, int length) {
+  double sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
+  for (int i = 0; i < length; i++) {
+    double x = i;
+    double y = buffer[i];
+    sum_x += x;
+    sum_y += y;
+    sum_xy += x * y;
+    sum_xx += x * x;
+  }
+  double n = length;
+  double m = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x);
+  double c = (sum_y - m * sum_x) / n;
+
+  for (int i = 0; i < length; i++) {
+    double trend = m * i + c;
+    buffer[i] = (float)(buffer[i] - trend);
+  }
+}
+
+// 2. IIR Filter logic (4th order)
+void lfilter(float* b, float* a, float* x, float* y, int length) {
+  for (int n = 0; n < length; n++) {
+    float xn = x[n];
+    float xn1 = (n >= 1) ? x[n-1] : 0;
+    float xn2 = (n >= 2) ? x[n-2] : 0;
+    float xn3 = (n >= 3) ? x[n-3] : 0;
+    float xn4 = (n >= 4) ? x[n-4] : 0;
+
+    float yn1 = (n >= 1) ? y[n-1] : 0;
+    float yn2 = (n >= 2) ? y[n-2] : 0;
+    float yn3 = (n >= 3) ? y[n-3] : 0;
+    float yn4 = (n >= 4) ? y[n-4] : 0;
+
+    y[n] = b[0]*xn + b[1]*xn1 + b[2]*xn2 + b[3]*xn3 + b[4]*xn4
+         - a[1]*yn1 - a[2]*yn2 - a[3]*yn3 - a[4]*yn4;
+  }
+}
+
+// 3. Zero-phase Bandpass Filter (0.5 - 5 Hz)
+void filtfilt_bandpass(float* buffer, int length) {
+  // Coefficients derived from scipy.signal.butter(2, [0.5/50, 5.0/50], btype='band')
+  float b[5] = {0.01658193f, 0.0f, -0.03316386f, 0.0f, 0.01658193f};
+  float a[5] = {1.0f, -3.5862398f, 4.8462898f, -2.9304272f, 0.6704579f};
+
+  float* temp_y = new float[length];
+  
+  // Forward filter
+  lfilter(b, a, buffer, temp_y, length);
+
+  // Reverse temp_y into buffer
+  for (int i = 0; i < length; i++) {
+    buffer[i] = temp_y[length - 1 - i];
+  }
+
+  // Forward filter again (backward relative to original)
+  lfilter(b, a, buffer, temp_y, length);
+
+  // Reverse temp_y back into buffer
+  for (int i = 0; i < length; i++) {
+    buffer[i] = temp_y[length - 1 - i];
+  }
+
+  delete[] temp_y;
+}
+
 void setup() {
   Serial.begin(115200);
   while (!Serial)
@@ -125,7 +194,6 @@ void setup() {
   Serial.println("\n1. Initializing MAX30102 sensor...");
   if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) {
     Serial.println("   ERROR: MAX30102 not found!");
-    oledMessage("ERROR:", "MAX30102", "not found!", "Check wiring.");
     while (1) {
       digitalWrite(STATUS_LED, HIGH);
       delay(100);
@@ -134,8 +202,18 @@ void setup() {
     }
   }
 
-  particleSensor.setup(LED_BRIGHTNESS, 4, 2, SAMPLE_RATE, 411, 4096);
-  particleSensor.setPulseAmplitudeRed(0x0A);
+  // SINKRONISASI KONFIGURASI DENGAN esp32_data_collector.ino
+  // Ini SANGAT KRUSIAL agar data saat testing sama persis dengan data saat training
+  byte ledBrightness = 0x7F;  // Sesuai data collector
+  byte sampleAverage = 1;     // Sesuai data collector (TIDAK BOLEH 4!)
+  byte ledMode = 2;           // Red + IR
+  int sampleRate = 100;       
+  int pulseWidth = 411;       
+  int adcRange = 4096;        
+
+  particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange);
+  particleSensor.setPulseAmplitudeRed(0x1F);
+  particleSensor.setPulseAmplitudeIR(0x1F);
   particleSensor.setPulseAmplitudeGreen(0);
   Serial.println("   OK - Sensor initialized");
 
@@ -216,6 +294,7 @@ void loop() {
   }
 
   // Calculate 4 features (matching Python pipeline)
+  // 1. RAW Mean (Sumbu X)
   float irSum = 0, redSum = 0;
   for (int i = 0; i < SAMPLE_WINDOW; i++) {
     irSum += irBuffer[i];
@@ -224,13 +303,42 @@ void loop() {
   float irMean = irSum / SAMPLE_WINDOW;
   float redMean = redSum / SAMPLE_WINDOW;
 
+  // 2. Siapkan buffer float untuk difilter
+  float* irFiltered = new float[SAMPLE_WINDOW];
+  float* redFiltered = new float[SAMPLE_WINDOW];
+  for (int i = 0; i < SAMPLE_WINDOW; i++) {
+    irFiltered[i] = (float)irBuffer[i];
+    redFiltered[i] = (float)redBuffer[i];
+  }
+
+  // 3. Lakukan Detrending
+  detrend_signal(irFiltered, SAMPLE_WINDOW);
+  detrend_signal(redFiltered, SAMPLE_WINDOW);
+
+  // 4. Lakukan Bandpass Filter (FiltFilt 0.5 - 5Hz)
+  filtfilt_bandpass(irFiltered, SAMPLE_WINDOW);
+  filtfilt_bandpass(redFiltered, SAMPLE_WINDOW);
+
+  // 5. Hitung Standar Deviasi (std) dari data BERSIH
+  float irFiltMean = 0, redFiltMean = 0;
+  for (int i = 0; i < SAMPLE_WINDOW; i++) {
+    irFiltMean += irFiltered[i];
+    redFiltMean += redFiltered[i];
+  }
+  irFiltMean /= SAMPLE_WINDOW;
+  redFiltMean /= SAMPLE_WINDOW;
+
   float irVar = 0, redVar = 0;
   for (int i = 0; i < SAMPLE_WINDOW; i++) {
-    irVar += (irBuffer[i] - irMean) * (irBuffer[i] - irMean);
-    redVar += (redBuffer[i] - redMean) * (redBuffer[i] - redMean);
+    irVar += (irFiltered[i] - irFiltMean) * (irFiltered[i] - irFiltMean);
+    redVar += (redFiltered[i] - redFiltMean) * (redFiltered[i] - redFiltMean);
   }
   float irStd = sqrt(irVar / SAMPLE_WINDOW);
   float redStd = sqrt(redVar / SAMPLE_WINDOW);
+
+  // Bersihkan RAM setelah selesai
+  delete[] irFiltered;
+  delete[] redFiltered;
 
   // Feature array: [ir_mean, red_mean, ir_std, red_std]
   float features[4] = {irMean, redMean, irStd, redStd};

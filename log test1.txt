@@ -1,0 +1,334 @@
+29375,94046.18,92450.30,19971.77,11859.49,37.38,93.60,0
+35499,93905.66,92137.38,654.92,530.99,45.13,92.65,1
+41624,95104.67,92876.77,1797.32,1670.32,58.09,89.87,1
+  [DEBUG] Finger: YES | Beats this window: 4 | Current BPM: 43.9 | Avg BPM: 58.1 | IR range: 9910
+47759,95572.28,93583.55,2226.95,1230.59,58.09,96.21,1
+53884,97291.34,94525.87,6789.17,3534.90,0.00,96.18,0
+60008,97520.80,93760.68,5005.35,5215.87,115.01,93.04,1
+66134,102745.48,87829.06,4286.42,1944.38,0.00,97.21,0
+72258,99528.45,92254.06,7811.48,5295.59,0.00,87.89,0
+  [DEBUG] Finger: YES | Beats this window: 0 | Current BPM: 0.0 | Avg BPM: 0.0 | IR range: 29277
+78394,67245.32,62782.22,40639.11,37261.09,0.00,86.06,0
+84519,93734.85,92253.66,6405.22,3520.95,0.00,87.04,0
+90645,100315.63,96555.91,3324.48,1694.68,0.00,96.28,0
+96771,95562.01,93527.09,5036.56,2737.55,0.00,96.04,0
+102896,101757.57,97171.61,504.69,289.49,0.00,95.39,0
+  [DEBUG] Finger: YES | Beats this window: 0 | Current BPM: 0.0 | Avg BPM: 0.0 | IR range: 2279
+109033,102826.10,97836.75,1665.22,855.88,64.45,96.98,1
+115160,98618.94,95322.80,8848.73,5196.33,0.00,94.67,0
+Collecting 1000 samples (10 seconds)...
+Data collected! Processing...
+Features:
+  ir_mean  = 100681.2
+  red_mean = 96744.3
+  ir_std   = 1656.6
+  red_std  = 970.2
+========================================
+Klasifikasi  : NON-HIPERTENSI
+Waktu Inferensi : 362 us (0.36 ms)
+RAM Total    : 2460 bytes used
+RAM Free     : 320808 bytes
+========================================
+
+Guru Meditation Error: Core  1 panic'ed (StoreProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x40084f5f  PS      : 0x00060530  A0      : 0x800d60b8  A1      : 0x3ffb21e0  
+A2      : 0x00000000  A3      : 0x00000000  A4      : 0x00000400  A5      : 0x00000000  
+A6      : 0x3ffc4804  A7      : 0x00000040  A8      : 0x800d6ad4  A9      : 0x3ffb21b0  
+A10     : 0x00000002  A11     : 0x3f402ca6  A12     : 0x00000029  A13     : 0x0000ff00  
+A14     : 0x00ff0000  A15     : 0x3ffc3f18  SAR     : 0x00000004  EXCCAUSE: 0x0000001d  
+EXCVADDR: 0x00000000  LBEG    : 0x40085375  LEND    : 0x40085385  LCOUNT  : 0xffffffff  
+
+
+Backtrace: 0x40084f5c:0x3ffb21e0 0x400d60b5:0x3ffb21f0 0x400d49ba:0x3ffb2210 0x400da3d8:0x3ffb2270 0x400884e9:0x3ffb2290
+
+
+
+
+ELF file SHA256: 3300240a2
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:4640
+load:0x40078000,len:15620
+ho 0 tail 12 room 4
+load:0x40080400,len:3164
+entry 0x4008059c
+====================================
+ESP32 Blood Pressure Classifier
+Random Forest (2-Class)
+====================================
+Free Heap: 323268 bytes
+
+1. Initializing MAX30102 sensor...
+   OK - Sensor initialized
+
+2. Random Forest model loaded (compiled in rf_model.h)
+   Features : ir_mean, red_mean, ir_std, red_std
+   Classes  : Non-Hipertensi (0), Hipertensi (1)
+   Trees    : 30
+   RAM used : 2196 bytes
+   RAM free : 321072 bytes
+
+System ready!
+Place your finger on the sensor...
+
+Collecting 1000 samples (10 seconds)...
+Data collected! Processing...
+Features:
+  ir_mean  = 112465.3
+  red_mean = 102650.4
+  ir_std   = 1010.4
+  red_std  = 485.7
+========================================
+Klasifikasi  : NON-HIPERTENSI
+Waktu Inferensi : 305 us (0.30 ms)
+RAM Total    : 2460 bytes used
+RAM Free     : 320808 bytes
+========================================
+
+Guru Meditation Error: Core  1 panic'ed (StoreProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x40084f5f  PS      : 0x00060530  A0      : 0x800d60b8  A1      : 0x3ffb21e0  
+A2      : 0x00000000  A3      : 0x00000000  A4      : 0x00000400  A5      : 0x00000000  
+A6      : 0x3ffc4804  A7      : 0x00000040  A8      : 0x800d6ad4  A9      : 0x3ffb21b0  
+A10     : 0x00000002  A11     : 0x3f402ca6  A12     : 0x00000029  A13     : 0x0000ff00  
+A14     : 0x00ff0000  A15     : 0x3ffc3f18  SAR     : 0x00000004  EXCCAUSE: 0x0000001d  
+EXCVADDR: 0x00000000  LBEG    : 0x40085375  LEND    : 0x40085385  LCOUNT  : 0xffffffff  
+
+
+Backtrace: 0x40084f5c:0x3ffb21e0 0x400d60b5:0x3ffb21f0 0x400d49ba:0x3ffb2210 0x400da3d8:0x3ffb2270 0x400884e9:0x3ffb2290
+
+
+
+
+ELF file SHA256: 3300240a2
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:4640
+load:0x40078000,len:15620
+ho 0 tail 12 room 4
+load:0x40080400,len:3164
+entry 0x4008059c
+====================================
+ESP32 Blood Pressure Classifier
+Random Forest (2-Class)
+====================================
+Free Heap: 323268 bytes
+
+1. Initializing MAX30102 sensor...
+   OK - Sensor initialized
+
+2. Random Forest model loaded (compiled in rf_model.h)
+   Features : ir_mean, red_mean, ir_std, red_std
+   Classes  : Non-Hipertensi (0), Hipertensi (1)
+   Trees    : 30
+   RAM used : 2196 bytes
+   RAM free : 321072 bytes
+
+System ready!
+Place your finger on the sensor...
+
+Collecting 1000 samples (10 seconds)...
+Data collected! Processing...
+Features:
+  ir_mean  = 98838.1
+  red_mean = 96404.3
+  ir_std   = 1210.8
+  red_std  = 764.4
+========================================
+Klasifikasi  : NON-HIPERTENSI
+Waktu Inferensi : 363 us (0.36 ms)
+RAM Total    : 2460 bytes used
+RAM Free     : 320808 bytes
+========================================
+
+Guru Meditation Error: Core  1 panic'ed (StoreProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x40084f5f  PS      : 0x00060530  A0      : 0x800d60b8  A1      : 0x3ffb21e0  
+A2      : 0x00000000  A3      : 0x00000000  A4      : 0x00000400  A5      : 0x00000000  
+A6      : 0x3ffc4804  A7      : 0x00000040  A8      : 0x800d6ad4  A9      : 0x3ffb21b0  
+A10     : 0x00000002  A11     : 0x3f402ca6  A12     : 0x00000029  A13     : 0x0000ff00  
+A14     : 0x00ff0000  A15     : 0x3ffc3f18  SAR     : 0x00000004  EXCCAUSE: 0x0000001d  
+EXCVADDR: 0x00000000  LBEG    : 0x40085375  LEND    : 0x40085385  LCOUNT  : 0xffffffff  
+
+
+Backtrace: 0x40084f5c:0x3ffb21e0 0x400d60b5:0x3ffb21f0 0x400d49ba:0x3ffb2210 0x400da3d8:0x3ffb2270 0x400884e9:0x3ffb2290
+
+
+
+
+ELF file SHA256: 3300240a2
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:4640
+load:0x40078000,len:15620
+ho 0 tail 12 room 4
+load:0x40080400,len:3164
+entry 0x4008059c
+====================================
+ESP32 Blood Pressure Classifier
+Random Forest (2-Class)
+====================================
+Free Heap: 323268 bytes
+
+1. Initializing MAX30102 sensor...
+   OK - Sensor initialized
+
+2. Random Forest model loaded (compiled in rf_model.h)
+   Features : ir_mean, red_mean, ir_std, red_std
+   Classes  : Non-Hipertensi (0), Hipertensi (1)
+   Trees    : 30
+   RAM used : 2196 bytes
+   RAM free : 321072 bytes
+
+System ready!
+Place your finger on the sensor...
+
+Collecting 1000 samples (10 seconds)...
+Data collected! Processing...
+Features:
+  ir_mean  = 99684.1
+  red_mean = 97136.1
+  ir_std   = 334.3
+  red_std  = 135.9
+========================================
+Klasifikasi  : NON-HIPERTENSI
+Waktu Inferensi : 496 us (0.50 ms)
+RAM Total    : 2460 bytes used
+RAM Free     : 320808 bytes
+========================================
+
+Guru Meditation Error: Core  1 panic'ed (StoreProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x40084f5f  PS      : 0x00060530  A0      : 0x800d60b8  A1      : 0x3ffb21e0  
+A2      : 0x00000000  A3      : 0x00000000  A4      : 0x00000400  A5      : 0x00000000  
+A6      : 0x3ffc4804  A7      : 0x00000040  A8      : 0x800d6ad4  A9      : 0x3ffb21b0  
+A10     : 0x00000002  A11     : 0x3f402ca6  A12     : 0x00000029  A13     : 0x0000ff00  
+A14     : 0x00ff0000  A15     : 0x3ffc3f18  SAR     : 0x00000004  EXCCAUSE: 0x0000001d  
+EXCVADDR: 0x00000000  LBEG    : 0x40085375  LEND    : 0x40085385  LCOUNT  : 0xffffffff  
+
+
+Backtrace: 0x40084f5c:0x3ffb21e0 0x400d60b5:0x3ffb21f0 0x400d49ba:0x3ffb2210 0x400da3d8:0x3ffb2270 0x400884e9:0x3ffb2290
+
+
+
+
+ELF file SHA256: 3300240a2
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:4640
+load:0x40078000,len:15620
+ho 0 tail 12 room 4
+load:0x40080400,len:3164
+entry 0x4008059c
+====================================
+ESP32 Blood Pressure Classifier
+Random Forest (2-Class)
+====================================
+Free Heap: 323268 bytes
+
+1. Initializing MAX30102 sensor...
+   OK - Sensor initialized
+
+2. Random Forest model loaded (compiled in rf_model.h)
+   Features : ir_mean, red_mean, ir_std, red_std
+   Classes  : Non-Hipertensi (0), Hipertensi (1)
+   Trees    : 30
+   RAM used : 2196 bytes
+   RAM free : 321072 bytes
+
+System ready!
+Place your finger on the sensor...
+
+Collecting 1000 samples (10 seconds)...
+Data collected! Processing...
+Features:
+  ir_mean  = 96564.6
+  red_mean = 95384.7
+  ir_std   = 478.3
+  red_std  = 313.9
+========================================
+Klasifikasi  : NON-HIPERTENSI
+Waktu Inferensi : 407 us (0.41 ms)
+RAM Total    : 2460 bytes used
+RAM Free     : 320808 bytes
+========================================
+
+Guru Meditation Error: Core  1 panic'ed (StoreProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x40084f5f  PS      : 0x00060530  A0      : 0x800d60b8  A1      : 0x3ffb21e0  
+A2      : 0x00000000  A3      : 0x00000000  A4      : 0x00000400  A5      : 0x00000000  
+A6      : 0x3ffc4804  A7      : 0x00000040  A8      : 0x800d6ad4  A9      : 0x3ffb21b0  
+A10     : 0x00000002  A11     : 0x3f402ca6  A12     : 0x00000029  A13     : 0x0000ff00  
+A14     : 0x00ff0000  A15     : 0x3ffc3f18  SAR     : 0x00000004  EXCCAUSE: 0x0000001d  
+EXCVADDR: 0x00000000  LBEG    : 0x40085375  LEND    : 0x40085385  LCOUNT  : 0xffffffff  
+
+
+Backtrace: 0x40084f5c:0x3ffb21e0 0x400d60b5:0x3ffb21f0 0x400d49ba:0x3ffb2210 0x400da3d8:0x3ffb2270 0x400884e9:0x3ffb2290
+
+
+
+
+ELF file SHA256: 3300240a2
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:4640
+load:0x40078000,len:15620
+ho 0 tail 12 room 4
+load:0x40080400,len:3164
+entry 0x4008059c
+====================================
+ESP32 Blood Pressure Classifier
+Random Forest (2-Class)
+====================================
+Free Heap: 323268 bytes
+
+1. Initializing MAX30102 sensor...
+   OK - Sensor initialized
+
+2. Random Forest model loaded (compiled in rf_model.h)
+   Features : ir_mean, red_mean, ir_std, red_std
+   Classes  : Non-Hipertensi (0), Hipertensi (1)
+   Trees    : 30
+   RAM used : 2196 bytes
+   RAM free : 321072 bytes
+
+System ready!
+Place your finger on the sensor...
+
+Collecting 1000 samples (10 seconds)...
