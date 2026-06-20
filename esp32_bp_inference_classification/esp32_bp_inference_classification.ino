@@ -204,7 +204,7 @@ void setup() {
 
   // SINKRONISASI KONFIGURASI DENGAN esp32_data_collector.ino
   // Ini SANGAT KRUSIAL agar data saat testing sama persis dengan data saat training
-  byte ledBrightness = 0x7F;  // Sesuai data collector
+  byte ledBrightness = 0x1F;  // Konsisten dengan setPulseAmplitude
   byte sampleAverage = 1;     // Sesuai data collector (TIDAK BOLEH 4!)
   byte ledMode = 2;           // Red + IR
   int sampleRate = 100;       
@@ -238,10 +238,48 @@ void setup() {
 }
 
 void loop() {
-  // Show measuring prompt with progress
-  oledMessage(" Collecting...", "", "Keep finger still", "~10 seconds");
+  // ── Menunggu Jari Terdeteksi ─────────────────────────────────────────
+  oledMessage("  >> READY <<", "", "Place finger on", "the sensor...");
+  Serial.println("Waiting for finger...");
 
-  // Collect sensor data (10 seconds @ 100Hz)
+  // Polling: Cek terus sampai jari terdeteksi
+  while (true) {
+    while (!particleSensor.available()) {
+      particleSensor.check();
+    }
+    long irCheck = particleSensor.getIR();
+    particleSensor.getRed();  // Baca red juga agar buffer sensor tidak penuh
+    particleSensor.nextSample();
+
+    if (irCheck > 50000) {
+      Serial.println("Finger detected!");
+      break;  // Jari terdeteksi, lanjut ke tahap berikutnya
+    }
+    // LED berkedip pelan saat menunggu
+    digitalWrite(STATUS_LED, !digitalRead(STATUS_LED));
+    delay(50);
+  }
+
+  // ── Settling Time: Buang 100 sampel pertama (1 detik) ────────────────
+  // Sensor MAX30102 membutuhkan waktu stabilisasi saat jari pertama kali
+  // menyentuh permukaan sensor. Data 1 detik pertama mengandung noise
+  // transien ekstrem akibat penyesuaian komponen optik internal.
+  oledMessage(" Stabilizing...", "", "Keep finger still", "Wait 1 sec...");
+  Serial.println("Settling time: Discarding first 100 samples (1 second)...");
+  
+  for (int i = 0; i < 100; i++) {
+    while (!particleSensor.available()) {
+      particleSensor.check();
+    }
+    // Baca tapi BUANG (tidak disimpan ke buffer)
+    particleSensor.getIR();
+    particleSensor.getRed();
+    particleSensor.nextSample();
+  }
+  Serial.println("Sensor stabilized. Starting data collection...");
+
+  // ── Collect sensor data (10 seconds @ 100Hz) ────────────────────────
+  oledMessage(" Collecting...", "", "Keep finger still", "~10 seconds");
   Serial.println("Collecting 1000 samples (10 seconds)...");
   digitalWrite(STATUS_LED, LOW);
 
@@ -278,20 +316,6 @@ void loop() {
   digitalWrite(STATUS_LED, HIGH);
 
   Serial.println("Data collected! Processing...");
-
-  // Check if finger is present (basic check)
-  float irMeanCheck = 0;
-  for (int i = 0; i < 100; i++) {
-    irMeanCheck += irBuffer[i];
-  }
-  irMeanCheck /= 100.0;
-
-  if (irMeanCheck < 50000) {
-    Serial.println("No finger detected!");
-    oledMessage(" No Signal!", "", "Check finger", "placement.");
-    delay(2000);
-    return;
-  }
 
   // Calculate 4 features (matching Python pipeline)
   // 1. RAW Mean (Sumbu X)
@@ -348,6 +372,17 @@ void loop() {
   Serial.printf("  red_mean = %.1f\n", redMean);
   Serial.printf("  ir_std   = %.1f\n", irStd);
   Serial.printf("  red_std  = %.1f\n", redStd);
+
+  // ── SQA (Signal Quality) / Motion Artifact Rejection ─────────────────
+  // Memblokir prediksi jika ir_std di luar batas normal (goyang atau mati)
+  if (irStd < 100.0 || irStd > 500.0) {
+    Serial.println("\n[SQA REJECTED] Sinyal tidak valid!");
+    Serial.println("Penyebab: Jari bergoyang (Motion) atau menekan terlalu kuat (Blanching).");
+    
+    oledMessage("  >> ERROR <<", "", " Sinyal Rusak!", " Jari Goyang?");
+    delay(3500);
+    return; // Batalkan prediksi, ulangi pengukuran dari awal
+  }
 
   // ── Run Random Forest Inference ──────────────────────────────────────
   uint32_t heapBeforeInfer = ESP.getFreeHeap();

@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install Python dependencies",
+      "type": "shell",
+      "command": "C:/Users/Kayyis/AppData/Local/Programs/Python/Python313/python.exe",
+      "args": [
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        "requirements.txt"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run feature extraction",
+      "type": "shell",
+      "command": "C:/Users/Kayyis/AppData/Local/Programs/Python/Python313/python.exe",
+      "args": [
+        "raw_data_pipeline/python_tools/extract_features.py"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Train TinyML model",
+      "type": "shell",
+      "command": "C:/Users/Kayyis/AppData/Local/Programs/Python/Python313/python.exe",
+      "args": [
+        "raw_data_pipeline/python_tools/train_rf_tinyml.py"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
