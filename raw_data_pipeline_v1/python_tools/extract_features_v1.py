@@ -1,198 +1,153 @@
+"""
+PIPELINE V1: Ekstraksi Fitur (BASELINE - TANPA PREPROCESSING, TANPA SQA)
+========================================================================
+Kondisi:
+  - TIDAK ada Band-Pass Filter
+  - TIDAK ada Linear Detrending
+  - TIDAK ada Signal Quality Assessment (SQA)
+  - TIDAK ada Pelabelan Subjek (subject_id)
+  - Sinyal MENTAH langsung digunakan untuk deteksi puncak dan hitung fitur
+  - Semua window diterima tanpa seleksi
+  
+Fitur: ir_ratio, red_ratio, crest_time_ratio, heart_rate
+Sumber data: raw_data_pipeline_v2/dataset_v2 (raw_data_*.csv)
+"""
 import os
 import glob
 import pandas as pd
 import numpy as np
-import scipy.signal as signal
 
-# ==========================================
-# CONFIGURATION
-# ==========================================
-RAW_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'dataset_v1')
-OUTPUT_FILE = os.path.join(RAW_DATA_DIR, 'extracted_features_v1.csv')
-SAMPLING_RATE_HZ = 100  # Based on 10ms delta in raw data
+RAW_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'raw_data_pipeline_v2', 'dataset_v2'))
+OUTPUT_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'dataset_v1'))
+OUTPUT_FILE  = os.path.join(OUTPUT_DIR, 'extracted_features_v1.csv')
 
-def calculate_hr_spo2(ir_raw, red_raw, fs=100):
-    """
-    Simplex feature extraction for Heart Rate and SpO2 from raw PPG.
-    In a real TinyML setup, you want this to mimic the ESP32 algorithm as closely as possible.
-    """
-    # Detrend signals
-    ir_detrended = signal.detrend(ir_raw)
-    
-    # Bandpass filter for Heart Rate (0.5 - 5 Hz corresponds to 30 - 300 bpm)
-    nyq = 0.5 * fs
-    b, a = signal.butter(2, [0.5 / nyq, 5.0 / nyq], btype='band')
-    ir_filtered = signal.filtfilt(b, a, ir_detrended)
-    
-    # Find peaks for Heart Rate
-    # Distance of fs/(220/60) means max HR of 220 bpm
-    min_dist = fs / (220/60.0) 
-    peaks, _ = signal.find_peaks(ir_filtered, distance=min_dist, prominence=np.std(ir_filtered)*0.5)
-    
-    heart_rate = 0
-    if len(peaks) > 1:
-        # Calculate mean peak-to-peak interval in seconds
-        rr_intervals = np.diff(peaks) / fs
-        mean_rr = np.mean(rr_intervals)
-        heart_rate = 60.0 / mean_rr
-        
-    # Calculate SpO2 using simplified AC/DC ratio
-    ac_red = np.std(red_raw)
-    dc_red = np.mean(red_raw)
-    ac_ir = np.std(ir_raw)
-    dc_ir = np.mean(ir_raw)
-    
-    spo2 = 0
-    if dc_red > 0 and dc_ir > 0 and ac_ir > 0:
-        ratio = (ac_red / dc_red) / (ac_ir / dc_ir)
-        # Empirical SpO2 formula (often tuned per sensor)
-        spo2 = 110.0 - 25.0 * ratio
-        # Cap SpO2 to realistic values
-        spo2 = np.clip(spo2, 0, 100)
-        
-    return heart_rate, spo2
+SAMPLING_RATE = 100  # Hz
 
-def load_and_extract_features():
-    print("=" * 70)
-    print("RAW DATA FEATURE EXTRACTION (1 File = 1 Window/Sample)")
-    print("=" * 70)
-    
-    csv_files = glob.glob(os.path.join(RAW_DATA_DIR, 'raw_data_*.csv'))
-    if not csv_files:
-        print(f"No raw data files found in {RAW_DATA_DIR}")
-        return
-        
-    print(f"Found {len(csv_files)} files. Extracting features...\n")
-    
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def find_peaks_simple(signal, min_dist=35, prominence_factor=0.5):
+    """Deteksi puncak sederhana tanpa scipy (agar konsisten dengan V1 tanpa filter)."""
+    threshold = np.std(signal) * prominence_factor
+    peaks = []
+    last_peak = -min_dist
+    for i in range(1, len(signal) - 1):
+        if signal[i] > signal[i-1] and signal[i] > signal[i+1]:
+            if signal[i] > threshold and (i - last_peak) >= min_dist:
+                peaks.append(i)
+                last_peak = i
+    return np.array(peaks)
+
+def extract():
+    print("=" * 65)
+    print("PIPELINE V1: Baseline (Tanpa Preprocessing, Tanpa SQA)")
+    print("=" * 65)
+
+    csv_files = sorted(glob.glob(os.path.join(RAW_DATA_DIR, 'raw_data_*.csv')))
+    print(f"Ditemukan {len(csv_files)} file raw data\n")
+
     features_list = []
-    
-    for file in csv_files:
-        try:
-            df = pd.read_csv(file)
-            if len(df) < 500: # Need at least 5 seconds of data at 100Hz
-                print(f"Skipping {os.path.basename(file)}: Not enough samples ({len(df)}).")
-                continue
-                
-            # Windowing logic: 10 seconds per window (1000 samples at 100Hz)
-            # This perfectly extracts 2 data points from a 25s file and safely discards the last 5 seconds.
-            window_size = 1000
-            num_windows = len(df) // window_size
-            
-            if num_windows == 0:
-                print(f"Skipping {os.path.basename(file)}: Length ({len(df)}) is less than 8 seconds.")
-                continue
-                
-            count_before = len(features_list)
-            for w in range(num_windows):
-                start_idx = w * window_size
-                end_idx = start_idx + window_size
-                
-                ir_raw = df['ir_raw'].values[start_idx:end_idx]
-                red_raw = df['red_raw'].values[start_idx:end_idx]
-                
-                # Apply Detrending to ensure accurate AC fluctuation readings
-                ir_detrended = signal.detrend(ir_raw)
-                red_detrended = signal.detrend(red_raw)
-                
-                # -------------------------------------------------------------
-                # QUALITY ASSURANCE (QA) GATE: CV < 12%
-                # -------------------------------------------------------------
-                # We apply a strict bandpass filter to calculate pure AC (Cardiac) Amplitude
-                nyq = 0.5 * SAMPLING_RATE_HZ
-                b, a = signal.butter(2, [0.5/nyq, 5.0/nyq], btype='band')
-                ir_filtered = signal.filtfilt(b, a, ir_detrended)
-                red_filtered = signal.filtfilt(b, a, red_detrended)
-                
-                peaks, _ = signal.find_peaks(ir_filtered, distance=50, prominence=np.std(ir_filtered)*0.5)
-                
-                if len(peaks) < 2:
-                    print(f"  -> [REJECTED] Window {w+1}/{num_windows} in {os.path.basename(file)}: Flatline (No Peaks).")
-                    continue
-                    
-                rr_intervals = np.diff(peaks)
-                mean_rr = np.mean(rr_intervals)
-                
-                if mean_rr == 0:
-                    continue
-                    
-                time_cv = (np.std(rr_intervals) / mean_rr) * 100
-                
-                # 1. Time CV (Jitter in RR intervals) - Toleransi dinaikkan menjadi 15%
-                if time_cv > 15.0:
-                    print(f"  -> [REJECTED] Window {w+1}/{num_windows} in {os.path.basename(file)}: Time CV {time_cv:.1f}% > 15% Limit (Jitter Detected).")
-                    continue
-                    
-                # 2nd QA Gate: Amplitude Coefficient of Variation (CV)
-                # Reject if the height of the peaks fluctuates wildly (e.g., finger moving vertically)
-                amplitudes = ir_filtered[peaks]
-                mean_amp = np.mean(amplitudes)
-                if mean_amp == 0:
-                    continue
-                    
-                cv_amp = np.std(amplitudes) / mean_amp
-                if cv_amp > 0.25: # Set limit to 25% because amplitude naturally varies more than rhythm
-                    print(f"  -> [REJECTED] Window {w+1}/{num_windows} in {os.path.basename(file)}: Amp CV {cv_amp*100:.1f}% > 25% Limit (Pressure Shift Detected).")
-                    continue
-                # -------------------------------------------------------------
-                
-                # Ground truth is duplicated on every row, just take the first
-                systolic = df['systolic_label'].iloc[0]
-                diastolic = df['diastolic_label'].iloc[0]
-                
-                # 1. Medical-Grade ML Features (Raw for Mean, Bandpass for STD)
-                ir_mean = int(np.round(np.mean(ir_raw)))
-                red_mean = int(np.round(np.mean(red_raw)))
-                ir_std = int(np.round(np.std(ir_filtered)))
-                red_std = int(np.round(np.std(red_filtered)))
-                
-                notes = f"win_{w+1}_of_{num_windows}"
-                
-                # Determine classification class (WHO/Indonesia Standard)
-                # Hipertensi: Systolic >= 140 ATAU Diastolic >= 90
-                if systolic >= 140 or diastolic >= 90:
-                    bp_class = 1  # Hipertensi
-                else:
-                    bp_class = 0  # Non-Hipertensi
-                
-                features_list.append({
-                    'timestamp': int(df['time_ms'].iloc[start_idx]), # Start timestamp of window
-                    'ir_mean': ir_mean,
-                    'red_mean': red_mean,
-                    'ir_std': ir_std,
-                    'red_std': red_std,
-                    'valid': 1,
-                    'systolic_bp': systolic,
-                    'diastolic_bp': diastolic,
-                    'bp_class': bp_class,
-                    'notes': notes
-                })
-            
-            # Simple & bulletproof: count by list length difference
-            accepted = len(features_list) - count_before
-            rejected = num_windows - accepted
-            
-            if rejected > 0:
-                print(f"[OK] Processed {os.path.basename(file)} -> Accepted {accepted}/{num_windows} windows, Rejected {rejected} (BP: {systolic}/{diastolic}, Class {bp_class})")
-            else:
-                print(f"[OK] Processed {os.path.basename(file)} -> Accepted {accepted}/{num_windows} windows (BP: {systolic}/{diastolic}, Class {bp_class})")
-            
-        except Exception as e:
-            print(f"[ERROR] Failed to process {file}: {e}")
-            
-    if not features_list:
-        print("No features extracted.")
-        return
-        
-    out_df = pd.DataFrame(features_list)
-    
-    # Save to the training_data folder so it can be merged with existing datasets
-    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-    out_df.to_csv(OUTPUT_FILE, index=False)
-    
-    print("\n" + "=" * 70)
-    print(f"Extraction Successful! Processed {len(out_df)} 25-second windows.")
-    print(f"Saved extracted features to: {OUTPUT_FILE}")
-    print("=" * 70)
 
-if __name__ == "__main__":
-    load_and_extract_features()
+    for file in csv_files:
+        parts = os.path.basename(file).split('_')
+        # Pastikan file format raw_data_XXXX_*.csv dan bukan angka
+        if len(parts) < 3 or parts[0] != 'raw' or parts[1] != 'data':
+            continue
+        if parts[2].isdigit():
+            continue
+
+        df = pd.read_csv(file)
+        if len(df) < 500:
+            continue
+
+        systolic  = df['systolic_label'].iloc[0]
+        diastolic = df['diastolic_label'].iloc[0]
+        bp_class  = 1 if (systolic >= 140 or diastolic >= 90) else 0
+
+        window_size = 1000
+        num_windows = 2 if len(df) >= 2000 else (1 if len(df) >= 1000 else 0)
+
+        accepted = 0
+        for w in range(num_windows):
+            s = w * window_size
+            e = s + window_size
+
+            # =============================================
+            # V1: Gunakan sinyal MENTAH tanpa filter apapun
+            # =============================================
+            ir_raw  = df['ir_raw'].values[s:e].astype(float)
+            red_raw = df['red_raw'].values[s:e].astype(float)
+
+            # Deteksi puncak langsung pada sinyal mentah
+            # (di-normalisasi dulu agar deteksi puncak lebih mudah)
+            ir_centered = ir_raw - np.mean(ir_raw)
+            peaks = find_peaks_simple(ir_centered, min_dist=35)
+
+            if len(peaks) < 2:
+                print(f"  -> [SKIP] {os.path.basename(file)} w{w+1}: Puncak tidak terdeteksi")
+                continue
+
+            rr = np.diff(peaks)
+            mean_rr = np.mean(rr)
+            if mean_rr == 0:
+                continue
+
+            heart_rate = 60.0 / (mean_rr / SAMPLING_RATE)
+
+            # Hitung crest time dari sinyal mentah (centered)
+            rise_times = []
+            for p in peaks:
+                trough_idx = p
+                for j in range(p - 1, max(0, p - 45) - 1, -1):
+                    if ir_centered[j] <= ir_centered[trough_idx]:
+                        trough_idx = j
+                    else:
+                        break
+                if p > trough_idx:
+                    rise_times.append((p - trough_idx) * 10.0)
+
+            if not rise_times:
+                continue
+
+            mean_rise = np.mean(rise_times)
+            ctr = mean_rise / (60000.0 / heart_rate) if heart_rate > 0 else 0
+
+            # Fitur AC/DC dari sinyal mentah (TANPA filter)
+            ir_mean  = np.mean(ir_raw)
+            red_mean = np.mean(red_raw)
+            ir_std   = np.std(ir_centered)   # std dari sinyal centered sebagai proxy AC
+            red_std  = np.std(red_raw - np.mean(red_raw))
+
+            ir_ratio  = (ir_std  / ir_mean)  * 100.0 if ir_mean  > 0 else 0
+            red_ratio = (red_std / red_mean) * 100.0 if red_mean > 0 else 0
+
+            features_list.append({
+                'ir_ratio':         round(ir_ratio,  4),
+                'red_ratio':        round(red_ratio, 4),
+                'crest_time_ratio': round(ctr,       4),
+                'heart_rate':       round(heart_rate, 2),
+                'systolic_bp':      systolic,
+                'diastolic_bp':     diastolic,
+                'bp_class':         bp_class,
+                'notes':            f"win_{w+1}_of_{num_windows}"
+            })
+            accepted += 1
+
+        print(f"[OK] {os.path.basename(file)} -> {accepted}/{num_windows} windows diterima")
+
+    df_out = pd.DataFrame(features_list)
+    if df_out.empty:
+        print("\n[ERROR] Tidak ada data yang berhasil diekstraksi!")
+        return
+
+    total_n = (df_out['bp_class'] == 0).sum()
+    total_h = (df_out['bp_class'] == 1).sum()
+    print(f"\nTotal: {len(df_out)} windows ({total_n}N / {total_h}H) [TANPA pemisahan subjek]")
+
+    df_out.to_csv(OUTPUT_FILE, index=False)
+    print(f"\n[SAVED] {OUTPUT_FILE}")
+    print("\nCATPATAN: V1 TIDAK memiliki SQA maupun pemisahan subjek.")
+    print("Evaluasi model menggunakan StratifiedKFold biasa (RAWAN data leakage).")
+    print("=" * 65 + "\n")
+
+if __name__ == '__main__':
+    extract()
