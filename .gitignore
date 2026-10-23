@@ -1,4 +1,6 @@
-# Python
+# ==============================================================================
+# 1. ENVIRONMENT, VIRTUAL ENVIRONMENT & PYTHON COMPILED
+# ==============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -10,17 +12,63 @@ env/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Arduino/ESP32
+# ==============================================================================
+# 2. ARDUINO, PLATFORMIO & EMBEDDED BUILD ARTIFACTS
+# ==============================================================================
 build/
+.pio/
 *.bin
 *.elf
 *.hex
 
-# Temp files
+# ==============================================================================
+# 3. OS & IDE TEMPORARY FILES
+# ==============================================================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
 *.bak
 *.tmp
-.DS_Store
+*.log
+.vscode/
 
-# (Abaikan dataset jika terlalu besar, tapi jika ingin diupload hapus tanda pagar di bawah)
-# raw_data_pipeline/dataset/
-# training_data/
+# ==============================================================================
+# 4. DOKUMEN AKADEMIK & DRAFT SKRIPSI (PRIVAT)
+# ==============================================================================
+# Naskah proposal, laporan skripsi, template kampus, dan slide presentasi
+*.docx
+*.pptx
+*.pdf
+catatan penting/
+
+# Catatan dan draft penulisan skripsi
+*draft*.md
+*proposal*.md
+*bab*.md
+autotune_results*.md
+nested_loso_rf_chosen_params.csv
+
+# ==============================================================================
+# 5. DATA PRIVASI MEDIS / REKAMAN SUBJEK PASIEN MENTAH
+# ==============================================================================
+# Rekaman sinyal PPG mentah per subjek/pasien (privasi & ukuran besar)
+**/raw_data_*.csv
+**/dataset/raw_data_*.csv
+**/dataset_v1/raw_data_*.csv
+**/dataset_v2/raw_data_*.csv
+**/dataset_v3/raw_data_*.csv
+**/dataset_sandbox/
+
+# Hasil record pengujian lapangan deploy per subjek
+raw_data_pipeline_v4/deployment_results/
+
+# Folder eksperimen dan sandbox internal
+sandbox/
+
+# Spreadsheet & file autotune internal berukuran besar
+*.xlsx
+*auto_tune_full_results*.csv
+*auto_tune_pareto*.csv
+*auto_tune_feature_combinations_full.csv
+*auto_tune_loso_*full.csv

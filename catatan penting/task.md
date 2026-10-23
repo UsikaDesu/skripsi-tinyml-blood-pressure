@@ -1,4 +1,0 @@
-- [x] Create implementation plan
-- [x] Add `detrend_signal` and `filtfilt_bandpass` functions to `esp32_bp_inference_classification.ino`
-- [x] Update `loop()` feature extraction logic to use filtered data for `std` calculation
-- [x] Create walkthrough artifact
